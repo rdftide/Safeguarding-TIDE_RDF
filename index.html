@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Safeguarding Tool — RDF CCW Barisal 2023</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Source+Sans+3:wght@300;400;600&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
+<style>
+  /* Keeping your exact original CSS */
+  :root {
+    --teal: #1a6b5a;
+    --teal-light: #2d9e86;
+    --teal-pale: #e6f4f1;
+    --amber: #d4830a;
+    --amber-light: #fdf3e0;
+    --red: #c0392b;
+    --red-light: #fdecea;
+    --slate: #2c3e50;
+    --slate-light: #5d7282;
+    --cream: #faf8f5;
+    --white: #ffffff;
+    --border: #dde5e2;
+    --shadow: 0 2px 12px rgba(26,107,90,0.10);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Source Sans 3', sans-serif;
+    background: var(--cream);
+    color: var(--slate);
+    min-height: 100vh;
+  }
+
+  header { background: var(--teal); color: white; padding: 0; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 16px rgba(0,0,0,0.18); }
+  .header-inner { max-width: 1100px; margin: 0 auto; padding: 18px 32px; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+  .header-title { font-family: 'Playfair Display', serif; font-size: 1.25rem; font-weight: 700; letter-spacing: 0.01em; line-height: 1.2; }
+  .header-meta { font-size: 0.78rem; opacity: 0.78; font-weight: 300; margin-top: 2px; letter-spacing: 0.03em; }
+  .header-badge { background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3); border-radius: 20px; padding: 5px 14px; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.05em; white-space: nowrap; }
+
+  .tab-bar { background: var(--white); border-bottom: 2px solid var(--border); display: flex; overflow-x: auto; max-width: 100%; }
+  .tab-bar-inner { max-width: 1100px; margin: 0 auto; display: flex; padding: 0 32px; gap: 0; }
+  .tab { padding: 14px 20px; font-size: 0.85rem; font-weight: 600; color: var(--slate-light); cursor: pointer; border-bottom: 3px solid transparent; margin-bottom: -2px; white-space: nowrap; transition: color 0.2s, border-color 0.2s; letter-spacing: 0.02em; }
+  .tab:hover { color: var(--teal); }
+  .tab.active { color: var(--teal); border-bottom-color: var(--teal); }
+
+  .container { max-width: 1100px; margin: 0 auto; padding: 32px 32px 60px; }
+  .section { display: none; }
+  .section.active { display: block; }
+
+  .card { background: var(--white); border-radius: 10px; border: 1px solid var(--border); padding: 28px 32px; margin-bottom: 20px; box-shadow: var(--shadow); }
+  .card-title { font-family: 'Playfair Display', serif; font-size: 1.08rem; font-weight: 700; color: var(--teal); margin-bottom: 16px; display: flex; align-items: center; gap: 10px; }
+  .card-title .icon { width: 30px; height: 30px; background: var(--teal-pale); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 1rem; flex-shrink: 0; }
+
+  .risk-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin-top: 4px; }
+  .risk-item { border-radius: 8px; padding: 16px 18px; border-left: 4px solid; transition: box-shadow 0.2s; }
+  .risk-item:hover { box-shadow: 0 3px 14px rgba(0,0,0,0.10); }
+  .risk-high { background: var(--red-light); border-color: var(--red); }
+  .risk-med { background: var(--amber-light); border-color: var(--amber); }
+  .risk-low { background: var(--teal-pale); border-color: var(--teal-light); }
+  .risk-label { font-size: 0.68rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 5px; }
+  .risk-high .risk-label { color: var(--red); }
+  .risk-med .risk-label { color: var(--amber); }
+  .risk-low .risk-label { color: var(--teal); }
+  .risk-title { font-size: 0.9rem; font-weight: 600; color: var(--slate); }
+  .risk-desc { font-size: 0.8rem; color: var(--slate-light); margin-top: 5px; line-height: 1.45; }
+
+  .checklist { list-style: none; }
+  .checklist li { display: flex; align-items: flex-start; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 0.88rem; line-height: 1.5; }
+  .checklist li:last-child { border-bottom: none; }
+  .checklist input[type="checkbox"] { width: 17px; height: 17px; accent-color: var(--teal); flex-shrink: 0; margin-top: 2px; cursor: pointer; }
+  .checklist label { cursor: pointer; flex: 1; }
+  .checklist input:checked + label { text-decoration: line-through; color: var(--slate-light); }
+  .check-section-title { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase; color: var(--teal-light); margin: 18px 0 4px; }
+
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .form-group { display: flex; flex-direction: column; gap: 6px; }
+  .form-group.full { grid-column: 1 / -1; }
+  label.field-label { font-size: 0.78rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--slate-light); }
+  .req { color: var(--red); }
+  input[type="text"], input[type="date"], select, textarea { border: 1.5px solid var(--border); border-radius: 6px; padding: 9px 12px; font-family: 'Source Sans 3', sans-serif; font-size: 0.9rem; color: var(--slate); background: var(--cream); transition: border-color 0.2s; outline: none; }
+  input:focus, select:focus, textarea:focus { border-color: var(--teal-light); background: var(--white); }
+  textarea { resize: vertical; min-height: 90px; }
+  .severity-row { display: flex; gap: 10px; flex-wrap: wrap; }
+  .sev-btn { padding: 7px 18px; border-radius: 20px; border: 2px solid var(--border); background: var(--white); font-size: 0.82rem; font-weight: 700; cursor: pointer; transition: all 0.18s; letter-spacing: 0.04em; }
+  .sev-btn:hover { border-color: var(--teal-light); }
+  .sev-btn.selected-low { background: var(--teal-pale); border-color: var(--teal); color: var(--teal); }
+  .sev-btn.selected-med { background: var(--amber-light); border-color: var(--amber); color: var(--amber); }
+  .sev-btn.selected-high { background: var(--red-light); border-color: var(--red); color: var(--red); }
+  .btn-submit { margin-top: 20px; background: var(--teal); color: white; border: none; border-radius: 7px; padding: 12px 32px; font-family: 'Source Sans 3', sans-serif; font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: background 0.2s, transform 0.1s; letter-spacing: 0.03em; }
+  .btn-submit:hover { background: var(--teal-light); }
+  .btn-submit:active { transform: scale(0.98); }
+  .form-note { font-size: 0.78rem; color: var(--slate-light); margin-top: 10px; line-height: 1.5; }
+
+  .log-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+  .log-table th { background: var(--teal-pale); color: var(--teal); font-weight: 700; font-size: 0.72rem; letter-spacing: 0.07em; text-transform: uppercase; padding: 10px 14px; text-align: left; border-bottom: 2px solid var(--border); }
+  .log-table td { padding: 11px 14px; border-bottom: 1px solid var(--border); vertical-align: top; line-height: 1.4; }
+  .log-table tr:last-child td { border-bottom: none; }
+  .log-table tr:hover td { background: var(--cream); }
+  .badge { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.04em; }
+  .badge-high { background: var(--red-light); color: var(--red); }
+  .badge-med { background: var(--amber-light); color: var(--amber); }
+  .badge-low { background: var(--teal-pale); color: var(--teal); }
+  .badge-open { background: #fff3cd; color: #856404; }
+  .badge-closed { background: #d4edda; color: #155724; }
+  .badge-progress { background: #cce5ff; color: #004085; }
+
+  .contacts-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
+  .contact-card { background: var(--teal-pale); border-radius: 9px; padding: 18px 20px; border: 1px solid var(--border); }
+  .contact-role { font-size: 0.7rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--teal-light); margin-bottom: 5px; }
+  .contact-name { font-size: 0.95rem; font-weight: 600; color: var(--slate); margin-bottom: 3px; }
+  .contact-detail { font-size: 0.82rem; color: var(--slate-light); line-height: 1.6; }
+
+  .principle-list { display: flex; flex-direction: column; gap: 12px; }
+  .principle { display: flex; gap: 14px; align-items: flex-start; background: var(--cream); border-radius: 8px; padding: 14px 16px; border: 1px solid var(--border); }
+  .principle-num { width: 28px; height: 28px; background: var(--teal); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.82rem; font-weight: 700; flex-shrink: 0; }
+  .principle-text strong { display: block; font-size: 0.9rem; margin-bottom: 3px; }
+  .principle-text p { font-size: 0.83rem; color: var(--slate-light); line-height: 1.5; }
+
+  .toast { position: fixed; bottom: 32px; right: 32px; background: var(--teal); color: white; padding: 14px 24px; border-radius: 8px; font-size: 0.9rem; font-weight: 600; box-shadow: 0 4px 20px rgba(0,0,0,0.18); display: none; z-index: 1000; animation: slideIn 0.3s ease; }
+  @keyframes slideIn { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+  .progress-bar-wrap { background: var(--border); border-radius: 10px; height: 8px; overflow: hidden; margin-top: 8px; }
+  .progress-bar { height: 100%; background: var(--teal); border-radius: 10px; transition: width 0.4s; }
+  
+  /* Loading Indicator */
+  .connection-status { font-size: 0.75rem; color: var(--white); font-weight: 600; padding-top: 4px; }
+  .connection-status.online { color: #81ecec; }
+  .connection-status.offline { color: #ff7675; }
+
+  @media (max-width: 680px) {
+    .container { padding: 16px; }
+    .header-inner { padding: 14px 16px; }
+    .tab-bar-inner { padding: 0 8px; }
+    .form-grid { grid-template-columns: 1fr; }
+    .card { padding: 18px 16px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <div>
+      <div class="header-title">Safeguarding Management Tool</div>
+      <div class="header-meta">RDF · CCW Barisal 2023 · CBF/CCW/NGO/2023/009 · Jan 2025 – Dec 2027</div>
+      <div id="conn-status" class="connection-status offline">Connecting to Real-time Database...</div>
+    </div>
+    <div class="header-badge">🛡️ SAFEGUARDING</div>
+  </div>
+</header>
+
+<div class="tab-bar">
+  <div class="tab-bar-inner">
+    <div class="tab active" onclick="showTab('overview')">Overview & Risks</div>
+    <div class="tab" onclick="showTab('checklist')">Compliance Checklist</div>
+    <div class="tab" onclick="showTab('incident')">Report Incident</div>
+    <div class="tab" onclick="showTab('log')">Incident Log</div>
+    <div class="tab" onclick="showTab('principles')">Principles & Policy</div>
+  </div>
+</div>
+
+<div class="container">
+<div id="tab-overview" class="section active">
+
+  <div class="card">
+    <div class="card-title"><span class="icon">⚠️</span> Project Safeguarding Risk Profile</div>
+    <p style="font-size:0.87rem;color:var(--slate-light);margin-bottom:18px;line-height:1.6;">
+      This tool supports safeguarding implementation for the <strong>Transforming Gender Inequality and Ensuring Empowerment for Climate-induced Displaced People in Urban Slum</strong> project. It covers 4 slums in Barishal City Corporation (Wards 6, 9, 11), with 4,778 direct participants (80% women/girls).
+    </p>
+    <div class="risk-grid">
+      <div class="risk-item risk-high">
+        <div class="risk-label">● High Risk</div>
+        <div class="risk-title">Child Marriage & GBV</div>
+        <div class="risk-desc">Project area has high child marriage rates. Activities involving adolescent girls require heightened oversight and safeguarding protocols.</div>
+      </div>
+      <div class="risk-item risk-high">
+        <div class="risk-label">● High Risk</div>
+        <div class="risk-title">PSEA in Slum Settings</div>
+        <div class="risk-desc">Dense informal settlements and power imbalances between staff/volunteers and displaced beneficiaries create elevated PSEA risk.</div>
+      </div>
+      <div class="risk-item risk-high">
+        <div class="risk-label">● High Risk</div>
+        <div class="risk-title">MHM & Dignity Risks</div>
+        <div class="risk-desc">Poor sanitation infrastructure and lack of private toilets increase dignity and safety risks for women and girls, especially at night.</div>
+      </div>
+      <div class="risk-item risk-med">
+        <div class="risk-label">● Medium Risk</div>
+        <div class="risk-title">Childcare Centre Risks</div>
+        <div class="risk-desc">Establishment of childcare centres requires child protection screening of all staff and robust supervision protocols.</div>
+      </div>
+      <div class="risk-item risk-med">
+        <div class="risk-label">● Medium Risk</div>
+        <div class="risk-title">Data Privacy</div>
+        <div class="risk-desc">Collecting sensitive data on 3,150 climate migrants requires data protection measures and informed consent processes.</div>
+      </div>
+      <div class="risk-item risk-low">
+        <div class="risk-label">● Lower Risk</div>
+        <div class="risk-title">Vocational Training</div>
+        <div class="risk-desc">Training activities for women/girls should be monitored for undue influence. Safe transport arrangements needed.</div>
+      </div>
+      <div class="risk-item risk-low">
+        <div class="risk-label">● Lower Risk</div>
+        <div class="risk-title">Waste Management</div>
+        <div class="risk-desc">Community engagement activities should ensure inclusive participation without excluding vulnerable groups.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="icon">📊</span> Safeguarding Compliance Progress</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;">
+      <div>
+        <div style="font-size:0.82rem;font-weight:600;color:var(--slate-light);">Overall Checklist Completion</div>
+        <div id="overall-pct" style="font-size:1.6rem;font-weight:700;color:var(--teal);margin:4px 0;">0%</div>
+        <div class="progress-bar-wrap"><div class="progress-bar" id="overall-bar" style="width:0%"></div></div>
+      </div>
+      <div>
+        <div style="font-size:0.82rem;font-weight:600;color:var(--slate-light);">Open Incidents</div>
+        <div id="open-incidents" style="font-size:1.6rem;font-weight:700;color:var(--amber);margin:4px 0;">0</div>
+        <div style="font-size:0.78rem;color:var(--slate-light);">Requiring follow-up action</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div id="tab-checklist" class="section">
+  <div class="card">
+    <div class="card-title"><span class="icon">✅</span> Safeguarding Compliance Checklist</div>
+    <p style="font-size:0.83rem;color:var(--slate-light);margin-bottom:12px;">Check items completed. Progress is tracked on the Overview tab. <span style="color:var(--teal);font-weight:600;">☁️ Live Sync Enabled: Changes are visible to all users instantly.</span></p>
+
+    <div class="check-section-title">1. Policies & Codes of Conduct</div>
+    <ul class="checklist" id="checklist">
+      <li><input type="checkbox" id="c1"><label for="c1">Organisational Safeguarding Policy in place and accessible to all staff</label></li>
+      <li><input type="checkbox" id="c2"><label for="c2">Code of Conduct signed by all project staff, volunteers, and partner organisation members</label></li>
+      <li><input type="checkbox" id="c3"><label for="c3">Child Protection Policy adopted and shared with childcare centre operators</label></li>
+      <li><input type="checkbox" id="c4"><label for="c4">PSEA (Protection from Sexual Exploitation and Abuse) policy displayed prominently at all four slum sites</label></li>
+
+      <div class="check-section-title">2. Staff Screening & Training</div>
+      <li><input type="checkbox" id="c5"><label for="c5">Background checks and reference verification completed for all staff, especially those working with children or women</label></li>
+      <li><input type="checkbox" id="c6"><label for="c6">Mandatory safeguarding induction training completed for 100% of project staff and volunteers</label></li>
+      <li><input type="checkbox" id="c7"><label for="c7">Child safeguarding training completed for all childcare centre workers</label></li>
+      <li><input type="checkbox" id="c8"><label for="c8">Annual safeguarding refresher training scheduled and documented</label></li>
+
+      <div class="check-section-title">3. Reporting & Response Mechanisms</div>
+      <li><input type="checkbox" id="c9"><label for="c9">Confidential safeguarding complaint/reporting channel established and communicated to all beneficiaries in Bengali</label></li>
+      <li><input type="checkbox" id="c10"><label for="c10">Designated Safeguarding Focal Point(s) appointed with clear roles and contact details</label></li>
+      <li><input type="checkbox" id="c11"><label for="c11">Incident reporting procedure documented and communicated to all staff</label></li>
+      <li><input type="checkbox" id="c12"><label for="c12">Referral pathway to external services (police, health, legal aid) mapped and documented for all four wards</label></li>
+      <li><input type="checkbox" id="c13"><label for="c13">Survivor-centred response protocol in place (confidentiality, do-no-harm, informed consent)</label></li>
+
+      <div class="check-section-title">4. Activity-Specific Safeguards</div>
+      <li><input type="checkbox" id="c14"><label for="c14">Safe transport and accompaniment policy for women/girls attending vocational training</label></li>
+      <li><input type="checkbox" id="c15"><label for="c15">Women-only MHM kiosk access times established and monitored</label></li>
+      <li><input type="checkbox" id="c16"><label for="c16">Capital grant distribution process includes anti-coercion measures and women's agency checks</label></li>
+      <li><input type="checkbox" id="c17"><label for="c17">Childcare centre has safe physical space standards (lighting, separate toilets, secure entry)</label></li>
+      <li><input type="checkbox" id="c18"><label for="c18">Solar street light placement informed by women's safety mapping</label></li>
+      <li><input type="checkbox" id="c19"><label for="c19">Innovation competition screening includes safeguarding criteria</label></li>
+
+      <div class="check-section-title">5. Community Awareness & Participation</div>
+      <li><input type="checkbox" id="c20"><label for="c20">Community awareness session on safeguarding rights and reporting conducted in all four slums</label></li>
+      <li><input type="checkbox" id="c21"><label for="c21">Community-based safeguarding volunteers/champions identified in each slum</label></li>
+      <li><input type="checkbox" id="c22"><label for="c22">Feedback and accountability mechanisms (suggestion boxes, community meetings) operational</label></li>
+      <li><input type="checkbox" id="c23"><label for="c23">Male engagement sessions on GBV prevention conducted as part of HRDP process</label></li>
+
+      <div class="check-section-title">6. Data Protection & Consent</div>
+      <li><input type="checkbox" id="c24"><label for="c24">Informed consent protocol in place for data collection from all 3,150 participants</label></li>
+      <li><input type="checkbox" id="c25"><label for="c25">Data storage and access controls in place to protect beneficiary personal information</label></li>
+      <li><input type="checkbox" id="c26"><label for="c26">Consent process adapted for low-literacy participants (verbal/pictorial consent forms)</label></li>
+
+      <div class="check-section-title">7. Monitoring & Review</div>
+      <li><input type="checkbox" id="c27"><label for="c27">Quarterly safeguarding review meetings scheduled with project management and focal points</label></li>
+      <li><input type="checkbox" id="c28"><label for="c28">Safeguarding indicators included in project M&E framework and quarterly reports to CBF</label></li>
+      <li><input type="checkbox" id="c29"><label for="c29">Annual safeguarding audit or self-assessment completed</label></li>
+      <li><input type="checkbox" id="c30"><label for="c30">Safeguarding section included in each donor progress report to CBF/CCW</label></li>
+    </ul>
+  </div>
+</div>
+
+<div id="tab-incident" class="section">
+  <div class="card">
+    <div class="card-title"><span class="icon">📋</span> Report a Safeguarding Concern or Incident</div>
+    <p style="font-size:0.83rem;color:var(--slate-light);margin-bottom:20px;line-height:1.6;">
+      All reports are treated with strict confidentiality. The identity of reporters and survivors will be protected. You may report anonymously.
+    </p>
+
+    <div class="form-grid">
+      <div class="form-group">
+        <label class="field-label">Date of Incident <span class="req">*</span></label>
+        <input type="date" id="inc-date">
+      </div>
+      <div class="form-group">
+        <label class="field-label">Location (Slum / Ward)</label>
+        <select id="inc-location">
+          <option value="">— Select —</option>
+          <option>Ward 06 – Shishu Park Colony</option>
+          <option>Ward 06 – Kalapotti Colony</option>
+          <option>Ward 09 – Rasulpur Colony</option>
+          <option>Ward 11 – Stadium Colony</option>
+          <option>Other / Not Specified</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="field-label">Incident Type <span class="req">*</span></label>
+        <select id="inc-type">
+          <option value="">— Select —</option>
+          <option>Sexual Exploitation or Abuse (SEA)</option>
+          <option>Physical Abuse</option>
+          <option>Emotional / Psychological Abuse</option>
+          <option>Child Protection Concern</option>
+          <option>GBV / Domestic Violence</option>
+          <option>Harassment (including sexual harassment)</option>
+          <option>Financial Coercion / Misuse of Benefits</option>
+          <option>Discrimination</option>
+          <option>Data/Privacy Breach</option>
+          <option>Code of Conduct Violation</option>
+          <option>Other Safeguarding Concern</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="field-label">Person(s) Involved</label>
+        <select id="inc-person">
+          <option value="">— Select —</option>
+          <option>Project Staff Member</option>
+          <option>Volunteer</option>
+          <option>Community Member / Third Party</option>
+          <option>Unknown</option>
+          <option>Prefer not to say</option>
+        </select>
+      </div>
+      <div class="form-group full">
+        <label class="field-label">Brief Description of Incident <span class="req">*</span></label>
+        <textarea id="inc-desc" placeholder="Describe what happened. Do not include full names of survivors or witnesses. Focus on facts."></textarea>
+      </div>
+      <div class="form-group full">
+        <label class="field-label">Immediate Action Taken (if any)</label>
+        <textarea id="inc-action" style="min-height:65px;" placeholder="e.g. Survivor referred to health centre, incident escalated to focal point..."></textarea>
+      </div>
+      <div class="form-group full">
+        <label class="field-label">Severity Level <span class="req">*</span></label>
+        <div class="severity-row" id="sev-row">
+          <button class="sev-btn" onclick="setSeverity('Low')">Low</button>
+          <button class="sev-btn" onclick="setSeverity('Medium')">Medium</button>
+          <button class="sev-btn" onclick="setSeverity('High')">High</button>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="field-label">Reporter Name (optional)</label>
+        <input type="text" id="inc-reporter" placeholder="Leave blank to report anonymously">
+      </div>
+      <div class="form-group">
+        <label class="field-label">Reporter Contact (optional)</label>
+        <input type="text" id="inc-contact" placeholder="Phone or email">
+      </div>
+    </div>
+
+    <button class="btn-submit" onclick="submitIncident()">Submit Report</button>
+    <div class="form-note">
+      ⚠️ If this is an emergency or someone is in immediate danger, contact the <strong>Safeguarding Focal Point immediately</strong> or call local emergency services. Do not delay for this form.
+    </div>
+  </div>
+</div>
+
+<div id="tab-log" class="section">
+  <div class="card">
+    <div class="card-title"><span class="icon">📁</span> Incident Log</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:6px;">
+      <p style="font-size:0.83rem;color:var(--slate-light);">Live synced. Access restricted to Safeguarding Focal Points and authorised management only.</p>
+      <button onclick="clearAllData()" style="font-size:0.75rem;padding:5px 14px;border-radius:6px;border:1.5px solid var(--red);background:var(--red-light);color:var(--red);cursor:pointer;font-weight:600;letter-spacing:0.03em;">🗑 Clear Cloud Data</button>
+    </div>
+    <div style="overflow-x:auto;">
+    <table class="log-table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Date</th>
+          <th>Type</th>
+          <th>Location</th>
+          <th>Severity</th>
+          <th>Status</th>
+          <th>Notes</th>
+        </tr>
+      </thead>
+      <tbody id="log-body">
+        <tr><td colspan="7" style="text-align:center;color:var(--slate-light);padding:28px;font-size:0.85rem;">Loading live records...</td></tr>
+      </tbody>
+    </table>
+    </div>
+  </div>
+</div>
+
+<div id="tab-principles" class="section">
+  <div class="card">
+    <div class="card-title"><span class="icon">📜</span> Core Safeguarding Principles for This Project</div>
+    <div class="principle-list">
+      <div class="principle">
+        <div class="principle-num">1</div>
+        <div class="principle-text">
+          <strong>Do No Harm</strong>
+          <p>All project activities — from WASH infrastructure to vocational training — must be designed and monitored to avoid causing harm to participants, particularly women, girls, and children in informal settlements who may be in vulnerable situations due to climate displacement.</p>
+        </div>
+      </div>
+      <div class="principle">
+        <div class="principle-num">2</div>
+        <div class="principle-text">
+          <strong>Survivor-Centred Approach</strong>
+          <p>The wishes, safety, and wellbeing of survivors of abuse or exploitation come first. Confidentiality is paramount. Survivors must give informed consent before any action is taken on their behalf. Staff must never pressure survivors to report to authorities.</p>
+        </div>
+      </div>
+      <div class="principle">
+        <div class="principle-num">3</div>
+        <div class="principle-text">
+          <strong>Child Protection Priority</strong>
+          <p>Given the high rates of child marriage in the project area and the operation of childcare centres, child safeguarding is a top priority. No child shall be subjected to abuse, exploitation, or unsafe conditions within any project activity or facility.</p>
+        </div>
+      </div>
+      <div class="principle">
+        <div class="principle-num">4</div>
+        <div class="principle-text">
+          <strong>Zero Tolerance for SEA</strong>
+          <p>Sexual exploitation and abuse by any project staff, volunteer, or associated personnel is absolutely prohibited and will result in immediate disciplinary action and referral to relevant authorities. Power imbalances between staff and climate-displaced beneficiaries must be actively managed.</p>
+        </div>
+      </div>
+      <div class="principle">
+        <div class="principle-num">5</div>
+        <div class="principle-text">
+          <strong>Inclusion & Non-Discrimination</strong>
+          <p>Safeguarding protections apply equally to all beneficiaries regardless of gender, age, disability, religion, or ethnicity. The 80% women/girls target group requires gender-responsive safeguarding measures including safe spaces, female staff, and culturally appropriate reporting mechanisms.</p>
+        </div>
+      </div>
+      <div class="principle">
+        <div class="principle-num">6</div>
+        <div class="principle-text">
+          <strong>Accountability & Transparency</strong>
+          <p>RDF is accountable to the communities it serves, to CBF/CCW, and to all project participants. Safeguarding performance must be reported transparently in all donor reports. Community feedback mechanisms must be functional and trusted.</p>
+        </div>
+      </div>
+      <div class="principle">
+        <div class="principle-num">7</div>
+        <div class="principle-text">
+          <strong>Confidentiality</strong>
+          <p>Information about safeguarding concerns and incidents is strictly confidential and shared only on a need-to-know basis. Breaching confidentiality (except where legally required to protect a child or vulnerable adult) is itself a safeguarding violation.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div>
+
+<div class="toast" id="toast">✅ Incident report submitted successfully.</div>
+
+<script>
+  // ==========================================
+  // 1. FIREBASE CONFIGURATION (REPLACE THIS)
+  // ==========================================
+  // IMPORTANT: You must replace these values with your own Firebase project configuration!
+  const firebaseConfig = {
+    // For Firebase JS SDK v7.20.0 and later, measurementId is optional
+const firebaseConfig = {
+  apiKey: "AIzaSyDMwP83_eLxRLEKXIgt2ZzaYczIYkI4JYI",
+  authDomain: "safeguarding-tool-rdf-tide.firebaseapp.com",
+  databaseURL: "https://safeguarding-tool-rdf-tide-default-rtdb.firebaseio.com",
+  projectId: "safeguarding-tool-rdf-tide",
+  storageBucket: "safeguarding-tool-rdf-tide.firebasestorage.app",
+  messagingSenderId: "1069892751518",
+  appId: "1:1069892751518:web:f72af638b9fa42fa996b8f",
+  measurementId: "G-DMGNNV3VX7"
+};
+  };
+
+  // Initialize Firebase
+  if (!firebase.apps.length) {
+    firebase.initializeApp(firebaseConfig);
+  }
+  const database = firebase.database();
+  
+  // Database References
+  const checklistRef = database.ref('safeguarding/checklist');
+  const incidentsRef = database.ref('safeguarding/incidents');
+
+  let incidents = [];
+  let selectedSeverity = '';
+
+  // ==========================================
+  // 2. REAL-TIME DATABASE LISTENERS
+  // ==========================================
+
+  // Monitor connection status
+  const connectedRef = database.ref(".info/connected");
+  connectedRef.on("value", (snap) => {
+    const statusEl = document.getElementById('conn-status');
+    if (snap.val() === true) {
+      statusEl.textContent = "🟢 Live Connected";
+      statusEl.className = "connection-status online";
+    } else {
+      statusEl.textContent = "🔴 Disconnected / Connecting...";
+      statusEl.className = "connection-status offline";
+    }
+  });
+
+  // Listen for Checklist changes from any user
+  checklistRef.on('value', (snapshot) => {
+    const data = snapshot.val() || {};
+    document.querySelectorAll('#checklist input[type="checkbox"]').forEach(cb => {
+      // Temporarily remove listener to avoid feedback loop
+      cb.removeEventListener('change', onCheckChange);
+      cb.checked = !!data[cb.id];
+      cb.addEventListener('change', onCheckChange);
+    });
+    updateProgress();
+  });
+
+  // Listen for Incident Log changes from any user
+  incidentsRef.on('value', (snapshot) => {
+    const data = snapshot.val() || {};
+    // Convert Firebase object back to an array to map easily
+    incidents = Object.keys(data).map(key => ({ dbKey: key, ...data[key] }));
+    
+    // Sort so newest are generally at the bottom (or reverse if you prefer)
+    incidents.sort((a, b) => new Date(a.date) - new Date(b.date));
+    
+    renderLog();
+    updateProgress();
+  });
+
+  // ==========================================
+  // 3. EVENT HANDLERS & ACTIONS
+  // ==========================================
+
+  // Push single checkbox change to Firebase
+  function onCheckChange(event) {
+    const cb = event.target;
+    checklistRef.child(cb.id).set(cb.checked);
+  }
+
+  // Submit Incident to Firebase
+  function submitIncident() {
+    const date = document.getElementById('inc-date').value;
+    const type = document.getElementById('inc-type').value;
+    const desc = document.getElementById('inc-desc').value.trim();
+    
+    if (!date || !type || !desc || !selectedSeverity) {
+      alert('Please fill in all required fields (Date, Incident Type, Description, and Severity Level).');
+      return;
+    }
+    
+    const incData = {
+      date,
+      type,
+      location: document.getElementById('inc-location').value || 'Not specified',
+      severity: selectedSeverity,
+      desc,
+      action: document.getElementById('inc-action').value,
+      reporter: document.getElementById('inc-reporter').value || 'Anonymous',
+      status: 'Open'
+    };
+    
+    // push() generates a unique ID, preventing overwrite collisions from multiple users
+    incidentsRef.push(incData)
+      .then(() => {
+        clearForm();
+        showToast();
+      })
+      .catch(error => {
+        alert("Error saving incident: " + error.message);
+      });
+  }
+
+  // Update Status directly in Firebase
+  function changeStatus(dbKey, val) {
+    incidentsRef.child(dbKey).update({ status: val });
+  }
+
+  // Clear Database (Caution)
+  function clearAllData() {
+    if (!confirm('This will permanently delete ALL saved checklist progress and incident records across ALL users. Are you sure?')) return;
+    
+    checklistRef.remove();
+    incidentsRef.remove();
+    alert('All cloud data cleared.');
+  }
+
+  // ==========================================
+  // 4. UI HELPERS
+  // ==========================================
+
+  function showTab(id) {
+    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.getElementById('tab-' + id).classList.add('active');
+    event.target.classList.add('active');
+  }
+
+  function updateProgress() {
+    const boxes = document.querySelectorAll('#checklist input[type="checkbox"]');
+    const checked = Array.from(boxes).filter(b => b.checked).length;
+    const pct = boxes.length > 0 ? Math.round((checked / boxes.length) * 100) : 0;
+    
+    document.getElementById('overall-pct').textContent = pct + '%';
+    document.getElementById('overall-bar').style.width = pct + '%';
+    
+    const open = incidents.filter(i => i.status === 'Open').length;
+    document.getElementById('open-incidents').textContent = open;
+  }
+
+  function renderLog() {
+    const tbody = document.getElementById('log-body');
+    if (incidents.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--slate-light);padding:28px;font-size:0.85rem;">No incidents logged yet.</td></tr>';
+      return;
+    }
+    
+    tbody.innerHTML = incidents.map((i, index) => `
+      <tr>
+        <td style="font-weight:700;color:var(--teal);">#${String(index + 1).padStart(3,'0')}</td>
+        <td>${i.date}</td>
+        <td>${i.type}</td>
+        <td style="font-size:0.8rem;">${i.location}</td>
+        <td><span class="badge badge-${i.severity.toLowerCase()}">${i.severity}</span></td>
+        <td>
+          <select onchange="changeStatus('${i.dbKey}', this.value)" style="font-size:0.78rem;padding:4px 8px;border-radius:5px;border:1.5px solid var(--border);cursor:pointer;">
+            <option ${i.status==='Open'?'selected':''}>Open</option>
+            <option ${i.status==='In Progress'?'selected':''}>In Progress</option>
+            <option ${i.status==='Closed'?'selected':''}>Closed</option>
+          </select>
+        </td>
+        <td style="font-size:0.8rem;color:var(--slate-light);max-width:200px;">${i.desc.substring(0,80)}${i.desc.length>80?'…':''}</td>
+      </tr>
+    `).join('');
+  }
+
+  function setSeverity(sev) {
+    selectedSeverity = sev;
+    document.querySelectorAll('.sev-btn').forEach(b => { b.className = 'sev-btn'; });
+    const map = { Low: 'selected-low', Medium: 'selected-med', High: 'selected-high' };
+    event.target.classList.add(map[sev]);
+  }
+
+  function clearForm() {
+    ['inc-date','inc-type','inc-location','inc-desc','inc-action','inc-reporter','inc-contact','inc-person'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.value = '';
+    });
+    document.querySelectorAll('.sev-btn').forEach(b => b.className = 'sev-btn');
+    selectedSeverity = '';
+    document.getElementById('inc-date').valueAsDate = new Date();
+  }
+
+  function showToast() {
+    const t = document.getElementById('toast');
+    t.style.display = 'block';
+    setTimeout(() => t.style.display = 'none', 3500);
+  }
+
+  // Initialize
+  window.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('inc-date').valueAsDate = new Date();
+    document.querySelectorAll('#checklist input[type="checkbox"]').forEach(cb => {
+      cb.addEventListener('change', onCheckChange);
+    });
+  });
+</script>
+</body>
+</html>
